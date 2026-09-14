@@ -7,6 +7,9 @@ import {
   InventoryItemFormData,
   InventoryStatus,
 } from "../types/inventory";
+import { WithdrawalModal } from "../components/inventory/WithdrawalModal";
+import { StockInModal } from "../components/inventory/StockInModal";
+import { ReturnModal } from "../components/inventory/ReturnModal";
 
 const EMPTY_FORM: InventoryItemFormData = {
   asset_serial_number: "",
@@ -48,10 +51,13 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<InventoryItemFormData>(EMPTY_FORM);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isStockInOpen, setIsStockInOpen] = useState(false);
+  const [isReturnOpen, setIsReturnOpen] = useState(false);
 
   const fetchInventory = async () => {
     try {
-      const response = await api.get("/inventory");
+      const response = await api.get("/items");
       setItems(response.data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -75,7 +81,7 @@ export default function Page() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post("/inventory", formData);
+      await api.post("/items", formData);
       alert("Item added successfully!");
       await fetchInventory();
       setFormData(EMPTY_FORM);
@@ -92,11 +98,59 @@ export default function Page() {
 
   if (loading) return <p className="p-8">Loading inventory...</p>;
 
+  const modalItems = items.map((i) => ({
+    id: i.id,
+    description: i.item_description,
+    quantity: Number(i.quantity),
+  }));
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">
-        Office Inventory System
-      </h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">
+          Office Inventory System
+        </h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsStockInOpen(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 font-medium"
+          >
+            Stock In
+          </button>
+          <button
+            onClick={() => setIsWithdrawOpen(true)}
+            className="bg-orange-600 text-white px-4 py-2 rounded shadow hover:bg-orange-700 font-medium"
+          >
+            Withdraw Item
+          </button>
+          <button
+            onClick={() => setIsReturnOpen(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700 font-medium"
+          >
+            Return Item
+          </button>
+        </div>
+      </div>
+
+      {/* Modals */}
+      <StockInModal
+        isOpen={isStockInOpen}
+        onClose={() => setIsStockInOpen(false)}
+        onSuccess={fetchInventory}
+        items={modalItems}
+      />
+      <WithdrawalModal
+        isOpen={isWithdrawOpen}
+        onClose={() => setIsWithdrawOpen(false)}
+        onSuccess={fetchInventory}
+        items={modalItems}
+      />
+      <ReturnModal
+        isOpen={isReturnOpen}
+        onClose={() => setIsReturnOpen(false)}
+        onSuccess={fetchInventory}
+        items={modalItems}
+      />
 
       {/* ---------- Add New Item Form ---------- */}
       <div className="bg-white p-6 rounded-lg shadow-md border mb-8 text-black">
@@ -254,7 +308,7 @@ export default function Page() {
           <button
             type="submit"
             disabled={submitting}
-            className="md:col-span-3 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="md:col-span-3 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
           >
             {submitting ? "Saving..." : "Save Item"}
           </button>
@@ -310,7 +364,9 @@ export default function Page() {
                     {formatMoney(item.book_value)}
                   </td>
                   <td className="p-2 capitalize">
-                    {item.status.replace("_", " ")}
+                    {typeof item.status === "string"
+                      ? item.status.replace("_", " ")
+                      : "active"}
                   </td>
                   <td className="p-2">{item.remarks ?? "—"}</td>
                 </tr>

@@ -1,3 +1,15 @@
+export interface Custodian {
+  id: number;
+  name: string;
+  office: string;
+}
+
+export interface Item {
+  id: number;
+  description: string;
+  quantity: number;
+}
+
 export type InventoryStatus =
   | "active"
   | "withdrawn"
