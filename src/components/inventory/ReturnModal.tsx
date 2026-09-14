@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
-import { Item, Custodian } from "../../types/inventory";
+import { InventoryItem, Custodian } from "../../types/inventory";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  items: Item[];
+  items: InventoryItem[];
 }
 
 export function ReturnModal({ isOpen, onClose, onSuccess, items }: Props) {
   const [custodians, setCustodians] = useState<Custodian[]>([]);
   const [formData, setFormData] = useState({
-    item_id: "",
+    inventory_item_id: "",
     custodian_id: "",
     quantity: "",
     return_date: new Date().toISOString().split("T")[0],
@@ -38,12 +38,15 @@ export function ReturnModal({ isOpen, onClose, onSuccess, items }: Props) {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/returns", formData);
+      await api.post("/returns", {
+        ...formData,
+        quantity: Number(formData.quantity),
+      });
       alert("Return processed successfully!");
       onSuccess();
       onClose();
       setFormData({
-        item_id: "",
+        inventory_item_id: "",
         custodian_id: "",
         quantity: "",
         return_date: new Date().toISOString().split("T")[0],
@@ -70,15 +73,19 @@ export function ReturnModal({ isOpen, onClose, onSuccess, items }: Props) {
             <select
               className="w-full border p-2 rounded"
               required
-              value={formData.item_id}
+              value={formData.inventory_item_id}
               onChange={(e) =>
-                setFormData({ ...formData, item_id: e.target.value })
+                setFormData({
+                  ...formData,
+                  inventory_item_id: e.target.value,
+                })
               }
             >
               <option value="">-- Choose Item --</option>
-              {items.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.description}
+
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.item_description}
                 </option>
               ))}
             </select>

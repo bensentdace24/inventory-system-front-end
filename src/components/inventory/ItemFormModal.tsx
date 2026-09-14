@@ -47,7 +47,12 @@ function toFormInput(item: InventoryItem): InventoryItemFormInput {
   };
 }
 
-export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: ItemFormModalProps) {
+export default function ItemFormModal({
+  mode,
+  initialItem,
+  onClose,
+  onSubmit,
+}: ItemFormModalProps) {
   const [form, setForm] = useState<InventoryItemFormInput>(
     initialItem ? toFormInput(initialItem) : emptyForm,
   );
@@ -65,7 +70,10 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.cost, form.depreciationExpense]);
 
-  function update<K extends keyof InventoryItemFormInput>(key: K, value: InventoryItemFormInput[K]) {
+  function update<K extends keyof InventoryItemFormInput>(
+    key: K,
+    value: InventoryItemFormInput[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -93,7 +101,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
   function fieldError(name: string) {
     const messages = errors[name];
     if (!messages || messages.length === 0) return null;
-    return <p className="mt-1 text-xs font-medium text-rose-600">{messages[0]}</p>;
+    return (
+      <p className="mt-1 text-xs font-medium text-rose-600">{messages[0]}</p>
+    );
   }
 
   return (
@@ -113,7 +123,10 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 px-6 py-5 sm:grid-cols-2">
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 gap-4 px-6 py-5 sm:grid-cols-2"
+        >
           {formError && (
             <div className="col-span-full rounded-lg bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
               {formError}
@@ -165,7 +178,8 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
 
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Acquisition / Purchase Date <span className="text-rose-500">*</span>
+              Acquisition / Purchase Date{" "}
+              <span className="text-rose-500">*</span>
             </label>
             <input
               required
@@ -179,7 +193,8 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
 
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Cost (Original Purchase Price) <span className="text-rose-500">*</span>
+              Cost (Original Purchase Price){" "}
+              <span className="text-rose-500">*</span>
             </label>
             <input
               required
@@ -210,20 +225,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Remaining Quantity</label>
-            <input
-              type="number"
-              min={0}
-              step="1"
-              value={form.remainingQuantity}
-              onChange={(e) => update("remainingQuantity", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-            {fieldError("remainingQuantity")}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Date of Withdrawal</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Date of Withdrawal
+            </label>
             <input
               type="date"
               value={form.dateOfWithdrawal ?? ""}
@@ -234,7 +238,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Date Returned</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Date Returned
+            </label>
             <input
               type="date"
               value={form.dateOfReturned ?? ""}
@@ -245,7 +251,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Salvage / Residual Value</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Salvage / Residual Value
+            </label>
             <input
               type="number"
               min={0}
@@ -258,7 +266,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Depreciation Expense</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Depreciation Expense
+            </label>
             <input
               type="number"
               min={0}
@@ -273,7 +283,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           <div>
             <label className="block text-sm font-medium text-slate-700">
               Book Value
-              <span className="ml-1 text-xs font-normal text-slate-400">(auto: cost − depreciation)</span>
+              <span className="ml-1 text-xs font-normal text-slate-400">
+                (auto: cost − depreciation)
+              </span>
             </label>
             <input
               type="number"
@@ -289,7 +301,9 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
           </div>
 
           <div className="col-span-full sm:col-span-1">
-            <label className="block text-sm font-medium text-slate-700">Status / Remarks</label>
+            <label className="block text-sm font-medium text-slate-700">
+              Status / Remarks
+            </label>
             <select
               value={form.statusRemarks}
               onChange={(e) => update("statusRemarks", e.target.value)}
@@ -317,7 +331,11 @@ export default function ItemFormModal({ mode, initialItem, onClose, onSubmit }: 
               disabled={submitting}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Saving…" : mode === "create" ? "Save Item" : "Update Item"}
+              {submitting
+                ? "Saving…"
+                : mode === "create"
+                  ? "Save Item"
+                  : "Update Item"}
             </button>
           </div>
         </form>

@@ -20,20 +20,17 @@ const EMPTY_FORM: InventoryItemFormData = {
   depreciation_expense: "",
   book_value: "",
   quantity: "",
-  remaining_quantity: "",
   custodian: "",
-  date_of_withdrawal: "",
-  date_of_returned: "",
-  status: "active",
-  remarks: "",
+  status: "Serviceable",
+  status_remarks: "",
 };
 
 const STATUS_OPTIONS: { value: InventoryStatus; label: string }[] = [
-  { value: "active", label: "Active" },
-  { value: "withdrawn", label: "Withdrawn" },
-  { value: "returned", label: "Returned" },
-  { value: "disposed", label: "Disposed" },
-  { value: "for_repair", label: "For Repair" },
+  { value: "Serviceable", label: "Serviceable" },
+  { value: "Withdrawn", label: "Withdrawn" },
+  { value: "Returned", label: "Returned" },
+  { value: "Disposed", label: "Disposed" },
+  { value: "For Repair", label: "For Repair" },
 ];
 
 function formatMoney(value: string | number | null): string {
@@ -57,7 +54,7 @@ export default function Page() {
 
   const fetchInventory = async () => {
     try {
-      const response = await api.get("/items");
+      const response = await api.get("/inventory");
       setItems(response.data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -81,7 +78,7 @@ export default function Page() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post("/items", formData);
+      await api.post("/inventory", formData);
       alert("Item added successfully!");
       await fetchInventory();
       setFormData(EMPTY_FORM);
@@ -97,12 +94,6 @@ export default function Page() {
   };
 
   if (loading) return <p className="p-8">Loading inventory...</p>;
-
-  const modalItems = items.map((i) => ({
-    id: i.id,
-    description: i.item_description,
-    quantity: Number(i.quantity),
-  }));
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -137,19 +128,21 @@ export default function Page() {
         isOpen={isStockInOpen}
         onClose={() => setIsStockInOpen(false)}
         onSuccess={fetchInventory}
-        items={modalItems}
+        items={items}
       />
+
       <WithdrawalModal
         isOpen={isWithdrawOpen}
         onClose={() => setIsWithdrawOpen(false)}
         onSuccess={fetchInventory}
-        items={modalItems}
+        items={items}
       />
+
       <ReturnModal
         isOpen={isReturnOpen}
         onClose={() => setIsReturnOpen(false)}
         onSuccess={fetchInventory}
-        items={modalItems}
+        items={items}
       />
 
       {/* ---------- Add New Item Form ---------- */}
@@ -217,18 +210,6 @@ export default function Page() {
             />
           </label>
           <label className="flex flex-col text-sm text-gray-600">
-            Remaining Quantity
-            <input
-              className="border p-2 rounded mt-1"
-              type="number"
-              required
-              value={formData.remaining_quantity}
-              onChange={(e) =>
-                updateField("remaining_quantity", e.target.value)
-              }
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-600">
             Custodian (assigned to)
             <input
               className="border p-2 rounded mt-1"
@@ -281,27 +262,12 @@ export default function Page() {
             />
           </label>
           <label className="flex flex-col text-sm text-gray-600">
-            Status
-            <select
-              className="border p-2 rounded mt-1"
-              value={formData.status}
-              onChange={(e) =>
-                updateField("status", e.target.value as InventoryStatus)
-              }
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col text-sm text-gray-600 md:col-span-1">
-            Remarks
+            Status / Remarks
             <input
               className="border p-2 rounded mt-1"
-              value={formData.remarks}
-              onChange={(e) => updateField("remarks", e.target.value)}
+              value={formData.status_remarks}
+              onChange={(e) => updateField("status_remarks", e.target.value)}
+              placeholder="e.g. Serviceable"
             />
           </label>
 
