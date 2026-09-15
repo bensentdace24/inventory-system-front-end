@@ -16,10 +16,10 @@ const EMPTY_FORM: InventoryItemFormData = {
   item_description: "",
   acquisition_date: "",
   cost: "",
+  quantity: "",
   salvage_value: "",
   depreciation_expense: "",
   book_value: "",
-  quantity: "",
   custodian: "",
   status: "Serviceable",
   status_remarks: "",
@@ -27,10 +27,12 @@ const EMPTY_FORM: InventoryItemFormData = {
 
 const STATUS_OPTIONS: { value: InventoryStatus; label: string }[] = [
   { value: "Serviceable", label: "Serviceable" },
-  { value: "Withdrawn", label: "Withdrawn" },
-  { value: "Returned", label: "Returned" },
-  { value: "Disposed", label: "Disposed" },
+  { value: "Unserviceable", label: "Unserviceable" },
   { value: "For Repair", label: "For Repair" },
+  { value: "For Disposal", label: "For Disposal" },
+  { value: "Disposed", label: "Disposed" },
+  { value: "Lost", label: "Lost" },
+  { value: "Borrowed", label: "Borrowed" },
 ];
 
 function formatMoney(value: string | number | null): string {
@@ -219,26 +221,6 @@ export default function Page() {
           </label>
 
           <label className="flex flex-col text-sm text-gray-600">
-            Date of Withdrawal
-            <input
-              className="border p-2 rounded mt-1"
-              type="date"
-              value={formData.date_of_withdrawal}
-              onChange={(e) =>
-                updateField("date_of_withdrawal", e.target.value)
-              }
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-600">
-            Date Returned
-            <input
-              className="border p-2 rounded mt-1"
-              type="date"
-              value={formData.date_of_returned}
-              onChange={(e) => updateField("date_of_returned", e.target.value)}
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-600">
             Depreciation Expense
             <input
               className="border p-2 rounded mt-1"
@@ -330,11 +312,10 @@ export default function Page() {
                     {formatMoney(item.book_value)}
                   </td>
                   <td className="p-2 capitalize">
-                    {typeof item.status === "string"
-                      ? item.status.replace("_", " ")
-                      : "active"}
+                    {typeof item.status_remarks === "string"
+                      ? item.status_remarks.replace("_", " ")
+                      : "—"}
                   </td>
-                  <td className="p-2">{item.remarks ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
