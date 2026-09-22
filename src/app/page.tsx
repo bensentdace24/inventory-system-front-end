@@ -13,14 +13,15 @@ import { ReturnModal } from "../components/inventory/ReturnModal";
 
 // --- Form Initial State & Options ---
 
+// 1. Update your EMPTY_FORM so numeric fields start at "0.00" instead of ""
 const EMPTY_FORM: InventoryItemFormData = {
   asset_serial_number: "",
   item_description: "",
   acquisition_date: "",
   cost: "",
-  quantity: "",
-  salvage_value: "",
-  depreciation_expense: "",
+  quantity: "1",
+  salvage_value: "0.00",
+  depreciation_expense: "0.00",
   book_value: "",
   custodian: "",
   status: "Serviceable",
@@ -141,20 +142,55 @@ export default function Page() {
     updateField("book_value", computed.toFixed(2));
   };
 
+  // 2. Update your handleSubmit function to sanitize and format numbers before posting
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post("/inventory", formData);
+      // Ensure all numeric fields are properly formatted as numbers/floats
+      const payload = {
+        ...formData,
+        cost: formData.cost !== "" ? parseFloat(formData.cost as string) : 0,
+        quantity:
+          formData.quantity !== ""
+            ? parseInt(formData.quantity as string, 10)
+            : 1,
+        salvage_value:
+          formData.salvage_value !== ""
+            ? parseFloat(formData.salvage_value as string)
+            : 0,
+        depreciation_expense:
+          formData.depreciation_expense !== ""
+            ? parseFloat(formData.depreciation_expense as string)
+            : 0,
+        book_value:
+          formData.book_value !== ""
+            ? parseFloat(formData.book_value as string)
+            : 0,
+      };
+
+      console.log("SENDING ITEM:", payload);
+
+      await api.post("/inventory", payload);
+
+      alert("Item added successfully!");
+
       await fetchInventory();
       setFormData(EMPTY_FORM);
-      setIsFormOpen(false);
     } catch (error: any) {
       console.error(
-        "Error saving data:",
-        error.response?.data || error.message,
+        "========== ADD ITEM ERROR ==========",
+        error.response?.data,
       );
-      alert("Failed to add item. Check console for validation errors.");
+      alert(
+        JSON.stringify(
+          error.response?.data ?? {
+            message: error.message,
+          },
+          null,
+          2,
+        ),
+      );
     } finally {
       setSubmitting(false);
     }
