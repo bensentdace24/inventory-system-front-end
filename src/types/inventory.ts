@@ -45,3 +45,39 @@ export interface InventoryItemFormData {
   status: InventoryStatus;
   status_remarks: string;
 }
+
+export interface Equipment {
+  id: number;
+  asset_number: string;
+  serial_number: string | null;
+  description: string;
+  category_id: number | null;
+  acquisition_date: string;
+  cost: string | number;
+  custodian_id: number | null;
+  location: string | null;
+  condition: string | null;
+  status: string;
+  remarks: string | null;
+
+  category?: {
+    id: number;
+    name: string;
+  } | null;
+
+  custodian?: Custodian | null;
+}
+
+export interface EquipmentFormData {
+  asset_number: string;
+  serial_number: string;
+  description: string;
+  category_id: number | null;
+  acquisition_date: string;
+  cost: string;
+  custodian_id: number | null;
+  location: string;
+  condition: string;
+  status: string;
+  remarks: string;
+}

@@ -6,7 +6,11 @@ import {
   InventoryItem,
   InventoryItemFormData,
   InventoryStatus,
+  Equipment,
 } from "../types/inventory";
+
+import EquipmentTable from "../components/equipment/EquipmentTable";
+
 import { WithdrawalModal } from "../components/inventory/WithdrawalModal";
 import { StockInModal } from "../components/inventory/StockInModal";
 import { ReturnModal } from "../components/inventory/ReturnModal";
@@ -100,6 +104,8 @@ function formatMoney(value: string | number | null): string {
 
 export default function Page() {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [equipmentLoading, setEquipmentLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<InventoryItemFormData>(EMPTY_FORM);
@@ -124,8 +130,23 @@ export default function Page() {
     }
   };
 
+  const fetchEquipment = async () => {
+    try {
+      setEquipmentLoading(true);
+
+      const response = await api.get("/equipment");
+
+      setEquipment(response.data);
+    } catch (error) {
+      console.error("Error fetching equipment:", error);
+    } finally {
+      setEquipmentLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchInventory();
+    fetchEquipment();
   }, []);
 
   const updateField = <K extends keyof InventoryItemFormData>(
@@ -1032,6 +1053,19 @@ export default function Page() {
               </table>
             </div>
           )}
+          <section className="mt-8">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Equipment Inventory
+              </h2>
+
+              <p className="text-sm text-gray-500">
+                Individual office equipment and property records
+              </p>
+            </div>
+
+            <EquipmentTable equipment={equipment} loading={equipmentLoading} />
+          </section>
 
           {/* Table Footer / Counter */}
           {!loading && filteredItems.length > 0 && (
