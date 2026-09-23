@@ -5,11 +5,13 @@ import { Equipment } from "../../types/inventory";
 interface EquipmentTableProps {
   equipment: Equipment[];
   loading: boolean;
+  onEdit: (item: Equipment) => void;
 }
 
 export default function EquipmentTable({
   equipment,
   loading,
+  onEdit,
 }: EquipmentTableProps) {
   if (loading) {
     return (
@@ -30,7 +32,7 @@ export default function EquipmentTable({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-left">
+        <table className="w-full min-w-[1250px] text-left">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-sm font-semibold text-gray-700">
@@ -71,6 +73,10 @@ export default function EquipmentTable({
 
               <th className="px-4 py-3 text-sm font-semibold text-gray-700">
                 Status
+              </th>
+
+              <th className="px-4 py-3 text-sm font-semibold text-gray-700">
+                Actions
               </th>
             </tr>
           </thead>
@@ -122,6 +128,16 @@ export default function EquipmentTable({
                   <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                     {item.status}
                   </span>
+                </td>
+
+                <td className="px-4 py-4 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(item)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
+                  >
+                    Edit
+                  </button>
                 </td>
               </tr>
             ))}

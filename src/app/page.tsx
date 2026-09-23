@@ -10,6 +10,7 @@ import {
 } from "../types/inventory";
 
 import EquipmentTable from "../components/equipment/EquipmentTable";
+import EquipmentModal from "../components/equipment/EquipmentModal";
 
 import { WithdrawalModal } from "../components/inventory/WithdrawalModal";
 import { StockInModal } from "../components/inventory/StockInModal";
@@ -17,7 +18,6 @@ import { ReturnModal } from "../components/inventory/ReturnModal";
 
 // --- Form Initial State & Options ---
 
-// 1. Update your EMPTY_FORM so numeric fields start at "0.00" instead of ""
 const EMPTY_FORM: InventoryItemFormData = {
   asset_serial_number: "",
   item_description: "",
@@ -44,47 +44,47 @@ const STATUS_OPTIONS: { value: InventoryStatus; label: string }[] = [
 
 const STATUS_CONFIG: Record<string, { badge: string; dot: string }> = {
   Serviceable: {
-    badge: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
+    badge: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
     dot: "bg-emerald-500",
   },
   Unserviceable: {
-    badge: "bg-rose-50 text-rose-700 border-rose-200/60",
+    badge: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200",
     dot: "bg-rose-500",
   },
   "For Repair": {
-    badge: "bg-amber-50 text-amber-700 border-amber-200/60",
+    badge: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
     dot: "bg-amber-500",
   },
   "For Disposal": {
-    badge: "bg-orange-50 text-orange-700 border-orange-200/60",
+    badge: "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200",
     dot: "bg-orange-500",
   },
   Disposed: {
-    badge: "bg-slate-100 text-slate-600 border-slate-200",
-    dot: "bg-slate-400",
+    badge: "bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200",
+    dot: "bg-gray-400",
   },
   Lost: {
-    badge: "bg-red-50 text-red-700 border-red-200/60",
+    badge: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
     dot: "bg-red-500",
   },
   Borrowed: {
-    badge: "bg-sky-50 text-sky-700 border-sky-200/60",
-    dot: "bg-sky-500",
+    badge: "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200",
+    dot: "bg-indigo-500",
   },
 };
 
 // --- Helpers & UI Sub-components ---
 
 function StatusBadge({ value }: { value?: string | null }) {
-  if (!value) return <span className="text-slate-400">—</span>;
+  if (!value) return <span className="text-gray-400">—</span>;
   const conf = STATUS_CONFIG[value] ?? {
-    badge: "bg-slate-100 text-slate-600 border-slate-200",
-    dot: "bg-slate-400",
+    badge: "bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200",
+    dot: "bg-gray-400",
   };
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${conf.badge}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${conf.badge}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${conf.dot}`} />
       {value}
@@ -102,14 +102,67 @@ function formatMoney(value: string | number | null): string {
   });
 }
 
+function StatCard({
+  icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: React.ReactNode;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          {label}
+        </span>
+        <span
+          className={`flex h-9 w-9 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}
+        >
+          {icon}
+        </span>
+      </div>
+      <p className="mt-3 text-2xl font-bold tracking-tight text-gray-900">
+        {value}
+      </p>
+      <p className="mt-1 text-xs text-gray-400">{hint}</p>
+    </div>
+  );
+}
+
+function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-right text-sm font-medium text-gray-800">
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function Page() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(
+    null,
+  );
   const [equipmentLoading, setEquipmentLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<InventoryItemFormData>(EMPTY_FORM);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | number | null>(
+    null,
+  );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
@@ -133,9 +186,7 @@ export default function Page() {
   const fetchEquipment = async () => {
     try {
       setEquipmentLoading(true);
-
       const response = await api.get("/equipment");
-
       setEquipment(response.data);
     } catch (error) {
       console.error("Error fetching equipment:", error);
@@ -163,12 +214,56 @@ export default function Page() {
     updateField("book_value", computed.toFixed(2));
   };
 
-  // 2. Update your handleSubmit function to sanitize and format numbers before posting
+  // Load an existing item into the form for editing
+  const handleEditItem = (item: InventoryItem) => {
+    setFormData({
+      asset_serial_number: item.asset_serial_number ?? "",
+      item_description: item.item_description ?? "",
+      acquisition_date: item.acquisition_date ?? "",
+      cost:
+        item.cost !== null && item.cost !== undefined ? String(item.cost) : "",
+      quantity:
+        item.quantity !== null && item.quantity !== undefined
+          ? String(item.quantity)
+          : "1",
+      salvage_value:
+        (item as any).salvage_value !== null &&
+        (item as any).salvage_value !== undefined
+          ? String((item as any).salvage_value)
+          : "0.00",
+      depreciation_expense:
+        (item as any).depreciation_expense !== null &&
+        (item as any).depreciation_expense !== undefined
+          ? String((item as any).depreciation_expense)
+          : "0.00",
+      book_value:
+        item.book_value !== null && item.book_value !== undefined
+          ? String(item.book_value)
+          : "",
+      custodian: item.custodian ?? "",
+      status: (item.status as InventoryStatus) ?? "Serviceable",
+      status_remarks: (item as any).status_remarks ?? "",
+    });
+    setEditingItemId(item.id);
+    setIsFormOpen(true);
+    // Bring the form into view so editing never requires hunting around the page
+    requestAnimationFrame(() => {
+      document
+        .getElementById("inventory-form")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setFormData(EMPTY_FORM);
+    setEditingItemId(null);
+    setIsFormOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Ensure all numeric fields are properly formatted as numbers/floats
       const payload = {
         ...formData,
         cost: formData.cost !== "" ? parseFloat(formData.cost as string) : 0,
@@ -190,17 +285,19 @@ export default function Page() {
             : 0,
       };
 
-      console.log("SENDING ITEM:", payload);
-
-      await api.post("/inventory", payload);
-
-      alert("Item added successfully!");
+      if (editingItemId !== null) {
+        await api.put(`/inventory/${editingItemId}`, payload);
+        alert("Item updated successfully!");
+      } else {
+        await api.post("/inventory", payload);
+        alert("Item added successfully!");
+      }
 
       await fetchInventory();
-      setFormData(EMPTY_FORM);
+      handleCancelEdit();
     } catch (error: any) {
       console.error(
-        "========== ADD ITEM ERROR ==========",
+        "========== SAVE ITEM ERROR ==========",
         error.response?.data,
       );
       alert(
@@ -253,13 +350,13 @@ export default function Page() {
   }, [items]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Top Navigation / App Header */}
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200">
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -275,10 +372,10 @@ export default function Page() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+                <h1 className="text-lg font-bold tracking-tight text-gray-900">
                   Office Inventory
                 </h1>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-gray-400">
                   Property &amp; Supply Management System
                 </p>
               </div>
@@ -286,11 +383,11 @@ export default function Page() {
 
             {/* Action Bar */}
             <div className="flex items-center gap-2">
-              <div className="hidden sm:flex sm:items-center sm:gap-1.5 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
+              <div className="hidden sm:flex sm:items-center sm:gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
                 <button
                   type="button"
                   onClick={() => setIsStockInOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-white hover:text-emerald-700 hover:shadow-sm"
                 >
                   <svg
                     className="h-3.5 w-3.5 text-emerald-600"
@@ -310,7 +407,7 @@ export default function Page() {
                 <button
                   type="button"
                   onClick={() => setIsWithdrawOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-white hover:text-amber-700 hover:shadow-sm"
                 >
                   <svg
                     className="h-3.5 w-3.5 text-amber-600"
@@ -330,7 +427,7 @@ export default function Page() {
                 <button
                   type="button"
                   onClick={() => setIsReturnOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-white hover:text-sky-700 hover:shadow-sm"
                 >
                   <svg
                     className="h-3.5 w-3.5 text-sky-600"
@@ -351,11 +448,19 @@ export default function Page() {
 
               <button
                 type="button"
-                onClick={() => setIsFormOpen((prev) => !prev)}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-xs transition ${
+                onClick={() => {
+                  if (isFormOpen) {
+                    handleCancelEdit();
+                  } else {
+                    setFormData(EMPTY_FORM);
+                    setEditingItemId(null);
+                    setIsFormOpen(true);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition ${
                   isFormOpen
-                    ? "bg-slate-200 text-slate-800 hover:bg-slate-300"
-                    : "bg-slate-900 text-white hover:bg-slate-800"
+                    ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                    : "bg-gray-900 text-white hover:bg-gray-800"
                 }`}
               >
                 {isFormOpen ? (
@@ -396,164 +501,166 @@ export default function Page() {
               </button>
             </div>
           </div>
+
+          {/* Mobile quick actions */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-3 sm:hidden">
+            <button
+              type="button"
+              onClick={() => setIsStockInOpen(true)}
+              className="whitespace-nowrap rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+            >
+              + Stock in
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsWithdrawOpen(true)}
+              className="whitespace-nowrap rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700"
+            >
+              Withdraw
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsReturnOpen(true)}
+              className="whitespace-nowrap rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700"
+            >
+              Return
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Metric Summary Cards */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Total Inventory
-              </span>
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"
-                  />
-                </svg>
-              </span>
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-bold tracking-tight text-slate-900">
-                {summary.count}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Tracked office items
-              </p>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Currently Out
-              </span>
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
-                  />
-                </svg>
-              </span>
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-bold tracking-tight text-slate-900">
-                {summary.outCount}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Pending check-in / return
-              </p>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Acquisition Cost
-              </span>
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6H2.25m0 0v10.5m0-10.5h19.5m0 0v10.5m0 0v.75c0 .754-.726 1.294-1.453 1.096a60.1 60.1 0 0 1-1.547-.417m0 0v-2.179"
-                  />
-                </svg>
-              </span>
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-bold tracking-tight text-slate-900">
-                ₱{formatMoney(summary.totalCost)}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Cumulative historical cost
-              </p>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Net Book Value
-              </span>
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
-                  />
-                </svg>
-              </span>
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-bold tracking-tight text-slate-900">
-                ₱{formatMoney(summary.totalBookValue)}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Current active value
-              </p>
-            </div>
-          </div>
+          <StatCard
+            label="Total Inventory"
+            value={summary.count}
+            hint="Tracked office items"
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
+            icon={
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Currently Out"
+            value={summary.outCount}
+            hint="Pending check-in / return"
+            iconBg="bg-amber-50"
+            iconColor="text-amber-600"
+            icon={
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Acquisition Cost"
+            value={`₱${formatMoney(summary.totalCost)}`}
+            hint="Cumulative historical cost"
+            iconBg="bg-emerald-50"
+            iconColor="text-emerald-600"
+            icon={
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6H2.25m0 0v10.5m0-10.5h19.5m0 0v10.5m0 0v.75c0 .754-.726 1.294-1.453 1.096a60.1 60.1 0 0 1-1.547-.417m0 0v-2.179"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Net Book Value"
+            value={`₱${formatMoney(summary.totalBookValue)}`}
+            hint="Current active value"
+            iconBg="bg-sky-50"
+            iconColor="text-sky-600"
+            icon={
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+                />
+              </svg>
+            }
+          />
         </div>
 
-        {/* Collapsible Add Item Form */}
+        {/* Collapsible Add / Edit Item Form */}
         {isFormOpen && (
-          <section className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition">
-            <div className="border-b border-slate-200/80 bg-slate-50/60 px-6 py-4">
-              <h2 className="text-base font-semibold text-slate-900">
-                Register New Inventory Item
+          <section
+            id="inventory-form"
+            className="mb-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm scroll-mt-24"
+          >
+            <div
+              className={`border-b border-gray-100 bg-gradient-to-r px-6 py-4 ${
+                editingItemId !== null
+                  ? "from-amber-50/70 to-transparent"
+                  : "from-indigo-50/60 to-transparent"
+              }`}
+            >
+              <h2 className="text-base font-bold text-gray-900">
+                {editingItemId !== null
+                  ? "Edit Inventory Item"
+                  : "Register New Inventory Item"}
               </h2>
-              <p className="text-xs text-slate-500">
-                Fill in the item details, cost, initial depreciation, and
-                assigned custodian.
+              <p className="text-xs text-gray-500">
+                {editingItemId !== null
+                  ? "Update the details below and save your changes."
+                  : "Fill in the item details, cost, initial depreciation, and assigned custodian."}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Section 1: Item Details */}
               <div>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-indigo-500">
                   Item Identity &amp; Classification
                 </h3>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Asset Serial Number{" "}
                       <span className="text-rose-500">*</span>
                     </label>
                     <input
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       required
                       placeholder="e.g. SN-2026-0841"
                       value={formData.asset_serial_number}
@@ -564,11 +671,11 @@ export default function Page() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Item Description <span className="text-rose-500">*</span>
                     </label>
                     <input
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       required
                       placeholder="e.g. Ergonomic Task Chair - Mesh High Back"
                       value={formData.item_description}
@@ -582,17 +689,17 @@ export default function Page() {
 
               {/* Section 2: Acquisition & Financial Valuation */}
               <div>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-indigo-500">
                   Valuation &amp; Depreciation
                 </h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
                   <div className="lg:col-span-2">
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Acquisition Date <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="date"
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       required
                       value={formData.acquisition_date}
                       onChange={(e) =>
@@ -602,11 +709,11 @@ export default function Page() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Cost (PHP) <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative mt-1.5">
-                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-gray-400">
                         ₱
                       </span>
                       <input
@@ -614,7 +721,7 @@ export default function Page() {
                         step="0.01"
                         required
                         placeholder="0.00"
-                        className="w-full rounded-lg border border-slate-300 py-2 pl-7 pr-3 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                        className="w-full rounded-lg border border-gray-300 py-2 pl-7 pr-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         value={formData.cost}
                         onChange={(e) => updateField("cost", e.target.value)}
                       />
@@ -622,7 +729,7 @@ export default function Page() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Quantity <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -630,25 +737,25 @@ export default function Page() {
                       min="1"
                       required
                       placeholder="1"
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       value={formData.quantity}
                       onChange={(e) => updateField("quantity", e.target.value)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Salvage Value
                     </label>
                     <div className="relative mt-1.5">
-                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-gray-400">
                         ₱
                       </span>
                       <input
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        className="w-full rounded-lg border border-slate-300 py-2 pl-7 pr-3 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                        className="w-full rounded-lg border border-gray-300 py-2 pl-7 pr-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         value={formData.salvage_value}
                         onChange={(e) =>
                           updateField("salvage_value", e.target.value)
@@ -659,27 +766,27 @@ export default function Page() {
 
                   <div>
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-medium text-slate-700">
+                      <label className="block text-xs font-medium text-gray-700">
                         Book Value
                       </label>
                       <button
                         type="button"
                         onClick={handleAutoComputeBookValue}
-                        className="text-[10px] font-semibold text-sky-600 hover:underline"
+                        className="text-[10px] font-semibold text-indigo-600 hover:underline"
                         title="Compute Cost - Depreciation"
                       >
                         Auto-calc
                       </button>
                     </div>
                     <div className="relative mt-1.5">
-                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-gray-400">
                         ₱
                       </span>
                       <input
                         type="number"
                         step="0.01"
                         placeholder="Auto"
-                        className="w-full rounded-lg border border-slate-300 py-2 pl-7 pr-3 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                        className="w-full rounded-lg border border-gray-300 py-2 pl-7 pr-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         value={formData.book_value}
                         onChange={(e) =>
                           updateField("book_value", e.target.value)
@@ -692,16 +799,16 @@ export default function Page() {
 
               {/* Section 3: Custody & Operational Status */}
               <div>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-indigo-500">
                   Custody &amp; Status
                 </h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Custodian (Assigned To)
                     </label>
                     <input
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       placeholder="e.g. Jane Doe (Records)"
                       value={formData.custodian}
                       onChange={(e) => updateField("custodian", e.target.value)}
@@ -709,18 +816,18 @@ export default function Page() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Depreciation Expense
                     </label>
                     <div className="relative mt-1.5">
-                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-gray-400">
                         ₱
                       </span>
                       <input
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        className="w-full rounded-lg border border-slate-300 py-2 pl-7 pr-3 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                        className="w-full rounded-lg border border-gray-300 py-2 pl-7 pr-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         value={formData.depreciation_expense}
                         onChange={(e) =>
                           updateField("depreciation_expense", e.target.value)
@@ -730,11 +837,11 @@ export default function Page() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Current Status
                     </label>
                     <select
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       value={formData.status}
                       onChange={(e) =>
                         updateField("status", e.target.value as InventoryStatus)
@@ -749,11 +856,11 @@ export default function Page() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700">
+                    <label className="block text-xs font-medium text-gray-700">
                       Remarks / Notes
                     </label>
                     <input
-                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/10"
+                      className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       placeholder="e.g. Issued to Room 204"
                       value={formData.status_remarks}
                       onChange={(e) =>
@@ -765,25 +872,31 @@ export default function Page() {
               </div>
 
               {/* Form Buttons */}
-              <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+                {editingItemId === null && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(EMPTY_FORM)}
+                    className="rounded-lg px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+                  >
+                    Reset form
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setFormData(EMPTY_FORM)}
-                  className="rounded-lg px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
-                >
-                  Reset form
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                  onClick={handleCancelEdit}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-xs font-medium text-white shadow-xs hover:bg-slate-800 disabled:opacity-50 transition"
+                  className={`inline-flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-semibold text-white shadow-sm transition disabled:opacity-50 ${
+                    editingItemId !== null
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-200 hover:from-amber-400 hover:to-orange-400"
+                      : "bg-gradient-to-r from-indigo-600 to-violet-600 shadow-indigo-200 hover:from-indigo-500 hover:to-violet-500"
+                  }`}
                 >
                   {submitting ? (
                     <>
@@ -806,8 +919,12 @@ export default function Page() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                         />
                       </svg>
-                      Saving item…
+                      {editingItemId !== null
+                        ? "Saving changes…"
+                        : "Saving item…"}
                     </>
+                  ) : editingItemId !== null ? (
+                    "Save changes"
                   ) : (
                     "Save asset"
                   )}
@@ -817,12 +934,21 @@ export default function Page() {
           </section>
         )}
 
-        {/* Inventory Table Container */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        {/* Inventory Card List — no horizontal scroll, edit is always one tap away */}
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <h2 className="text-base font-bold text-gray-900">
+              Inventory Assets
+            </h2>
+            <span className="text-xs text-gray-400">
+              {summary.count} total records
+            </span>
+          </div>
+
           {/* Table Controls (Search & Filters) */}
-          <div className="flex flex-col gap-4 border-b border-slate-200/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full sm:max-w-md">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
                 <svg
                   className="h-4 w-4"
                   fill="none"
@@ -838,7 +964,7 @@ export default function Page() {
                 </svg>
               </span>
               <input
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2 pl-10 pr-9 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-10 pr-9 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
                 placeholder="Search serial no., item name, custodian…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -847,7 +973,7 @@ export default function Page() {
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
                 >
                   <svg
                     className="h-4 w-4"
@@ -878,10 +1004,10 @@ export default function Page() {
                 <button
                   key={tab.id}
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     statusFilter === tab.id
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "text-slate-600 hover:bg-slate-100"
+                      ? "bg-gray-900 text-white shadow-sm"
+                      : "text-gray-500 hover:bg-gray-100"
                   }`}
                 >
                   {tab.label}
@@ -890,19 +1016,19 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Table Content */}
+          {/* Card Grid */}
           {loading ? (
-            <div className="p-8 space-y-4">
-              {[1, 2, 3, 4, 5].map((idx) => (
+            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((idx) => (
                 <div
                   key={idx}
-                  className="h-10 w-full animate-pulse rounded-lg bg-slate-100"
+                  className="h-44 w-full animate-pulse rounded-xl bg-gray-100"
                 />
               ))}
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
                 <svg
                   className="h-7 w-7"
                   fill="none"
@@ -917,12 +1043,12 @@ export default function Page() {
                   />
                 </svg>
               </div>
-              <p className="mt-4 text-sm font-semibold text-slate-900">
+              <p className="mt-4 text-sm font-semibold text-gray-900">
                 {items.length === 0
                   ? "No inventory assets found"
                   : "No matching assets found"}
               </p>
-              <p className="mt-1 text-xs text-slate-500 max-w-sm">
+              <p className="mt-1 text-xs text-gray-500 max-w-sm">
                 {items.length === 0
                   ? "Get started by registering your first office item using the button above."
                   : "Try clearing your search query or switching your status filter tab."}
@@ -930,146 +1056,130 @@ export default function Page() {
               {items.length === 0 && (
                 <button
                   onClick={() => setIsFormOpen(true)}
-                  className="mt-4 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-slate-800"
+                  className="mt-4 rounded-lg bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-gray-800"
                 >
                   Add first asset
                 </button>
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200/80 bg-slate-50/75 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="px-4 py-3">Item &amp; Serial</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Stock &amp; Availability</th>
-                    <th className="px-4 py-3">Acquired</th>
-                    <th className="px-4 py-3 text-right">Cost</th>
-                    <th className="px-4 py-3 text-right">Book value</th>
-                    <th className="px-4 py-3">Custodian</th>
-                    <th className="px-4 py-3 text-center">Movement</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredItems.map((item) => {
-                    const isOut =
-                      item.date_of_withdrawal && !item.date_of_returned;
+            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredItems.map((item) => {
+                const isOut = item.date_of_withdrawal && !item.date_of_returned;
+                const isBeingEdited = editingItemId === item.id;
 
-                    return (
-                      <tr
-                        key={item.id}
-                        className="group hover:bg-slate-50/80 transition-colors"
+                return (
+                  <div
+                    key={item.id}
+                    className={`group relative flex flex-col rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md ${
+                      isBeingEdited
+                        ? "border-amber-300 ring-2 ring-amber-100"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    {/* Card header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-gray-900 leading-snug">
+                          {item.item_description}
+                        </p>
+                        <p className="mt-0.5 font-mono text-[11px] text-gray-400">
+                          {item.asset_serial_number || "NO SERIAL"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleEditItem(item)}
+                        title="Edit this item"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-indigo-50 hover:text-indigo-600"
                       >
-                        {/* Description & Serial */}
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900 leading-snug">
-                            {item.item_description}
-                          </p>
-                          <p className="mt-0.5 font-mono text-[11px] text-slate-400">
-                            {item.asset_serial_number || "NO SERIAL"}
-                          </p>
-                        </td>
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M16.862 4.487a2.06 2.06 0 1 1 2.913 2.913L8.9 18.275l-4 1 1-4Z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
 
-                        {/* Status */}
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <StatusBadge value={item.status} />
-                          {item.status_remarks && (
-                            <p className="mt-1 text-[11px] text-slate-400 truncate max-w-[140px]">
-                              {item.status_remarks}
-                            </p>
-                          )}
-                        </td>
+                    <div className="mt-2">
+                      <StatusBadge value={item.status} />
+                      {item.status_remarks && (
+                        <p className="mt-1 text-[11px] text-gray-400">
+                          {item.status_remarks}
+                        </p>
+                      )}
+                    </div>
 
-                        {/* Stock & Quantity */}
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-slate-800">
-                              {item.remaining_quantity ?? item.quantity}
-                            </span>
-                            <span className="text-slate-400">/</span>
-                            <span className="text-xs text-slate-500">
-                              {item.quantity} total
-                            </span>
-                          </div>
-                        </td>
+                    {/* Card body — everything visible, nothing to scroll to */}
+                    <div className="mt-3 divide-y divide-gray-50 border-t border-gray-50">
+                      <FieldRow
+                        label="Stock"
+                        value={`${item.remaining_quantity ?? item.quantity} / ${item.quantity}`}
+                      />
+                      <FieldRow
+                        label="Acquired"
+                        value={item.acquisition_date || "—"}
+                      />
+                      <FieldRow
+                        label="Cost"
+                        value={`₱${formatMoney(item.cost)}`}
+                      />
+                      <FieldRow
+                        label="Book value"
+                        value={`₱${formatMoney(item.book_value)}`}
+                      />
+                      <FieldRow
+                        label="Custodian"
+                        value={item.custodian || "—"}
+                      />
+                    </div>
 
-                        {/* Acquisition Date */}
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
-                          {item.acquisition_date || "—"}
-                        </td>
+                    {/* Movement footer */}
+                    <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3">
+                      {isOut ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                          title={`Withdrawn on ${item.date_of_withdrawal}`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Out: {item.date_of_withdrawal}
+                        </span>
+                      ) : item.date_of_returned ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600"
+                          title={`Returned on ${item.date_of_returned}`}
+                        >
+                          Returned
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">In Office</span>
+                      )}
 
-                        {/* Financials: Cost */}
-                        <td className="px-4 py-3 text-right whitespace-nowrap font-medium text-slate-700">
-                          ₱{formatMoney(item.cost)}
-                        </td>
-
-                        {/* Financials: Book Value */}
-                        <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-slate-900">
-                          ₱{formatMoney(item.book_value)}
-                        </td>
-
-                        {/* Custodian */}
-                        <td className="px-4 py-3 whitespace-nowrap text-slate-700">
-                          {item.custodian ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <span className="h-6 w-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold uppercase">
-                                {item.custodian.charAt(0)}
-                              </span>
-                              <span className="text-xs">{item.custodian}</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
-                        </td>
-
-                        {/* Movement / Withdrawal Status */}
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          {isOut ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
-                              title={`Withdrawn on ${item.date_of_withdrawal}`}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Out: {item.date_of_withdrawal}
-                            </span>
-                          ) : item.date_of_returned ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
-                              title={`Returned on ${item.date_of_returned}`}
-                            >
-                              Returned
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400">
-                              In Office
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      <button
+                        type="button"
+                        onClick={() => handleEditItem(item)}
+                        className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          <section className="mt-8">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Equipment Inventory
-              </h2>
 
-              <p className="text-sm text-gray-500">
-                Individual office equipment and property records
-              </p>
-            </div>
-
-            <EquipmentTable equipment={equipment} loading={equipmentLoading} />
-          </section>
-
-          {/* Table Footer / Counter */}
+          {/* Footer / Counter */}
           {!loading && filteredItems.length > 0 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-xs text-gray-500">
               <span>
                 Showing <strong>{filteredItems.length}</strong> of{" "}
                 <strong>{items.length}</strong> total records
@@ -1078,6 +1188,55 @@ export default function Page() {
             </div>
           )}
         </div>
+
+        {/* Equipment Inventory */}
+        <section className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                Equipment Inventory
+              </h2>
+              <p className="text-xs text-gray-400">
+                Individual office equipment and property records
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedEquipment(null);
+                setIsEquipmentModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 transition"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4.5v15m7.5-7.5h-15"
+                />
+              </svg>
+              Add Equipment
+            </button>
+          </div>
+
+          <div className="p-4">
+            <EquipmentTable
+              equipment={equipment}
+              loading={equipmentLoading}
+              onEdit={(item) => {
+                setSelectedEquipment(item);
+                setIsEquipmentModalOpen(true);
+              }}
+            />
+          </div>
+        </section>
       </main>
 
       {/* Transaction Modals */}
@@ -1098,6 +1257,15 @@ export default function Page() {
         onClose={() => setIsReturnOpen(false)}
         onSuccess={fetchInventory}
         items={items}
+      />
+      <EquipmentModal
+        isOpen={isEquipmentModalOpen}
+        onClose={() => {
+          setIsEquipmentModalOpen(false);
+          setSelectedEquipment(null);
+        }}
+        onSuccess={fetchEquipment}
+        equipment={selectedEquipment}
       />
     </div>
   );
