@@ -11,6 +11,7 @@ import {
 
 import EquipmentTable from "../components/equipment/EquipmentTable";
 import EquipmentModal from "../components/equipment/EquipmentModal";
+import EquipmentReturnModal from "../components/equipment/EquipmentReturnModal";
 
 import { WithdrawalModal } from "../components/inventory/WithdrawalModal";
 import { StockInModal } from "../components/inventory/StockInModal";
@@ -156,6 +157,8 @@ export default function Page() {
     null,
   );
   const [equipmentLoading, setEquipmentLoading] = useState(true);
+  const [isEquipmentReturnModalOpen, setIsEquipmentReturnModalOpen] =
+    useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<InventoryItemFormData>(EMPTY_FORM);
@@ -199,6 +202,33 @@ export default function Page() {
     fetchInventory();
     fetchEquipment();
   }, []);
+
+  const handleDeleteEquipment = async (item: Equipment) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${item.description}" (${item.asset_number})?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/equipment/${item.id}`);
+
+      alert("Equipment deleted successfully!");
+
+      fetchEquipment();
+    } catch (error: any) {
+      console.error("Failed to delete equipment:", error);
+
+      alert(
+        error.response?.data?.message ||
+          "Failed to delete equipment. Please try again.",
+      );
+    }
+  };
+  const handleReturnEquipment = (item: Equipment) => {
+    setSelectedEquipment(item);
+    setIsEquipmentReturnModalOpen(true);
+  };
 
   const updateField = <K extends keyof InventoryItemFormData>(
     field: K,
@@ -1234,6 +1264,8 @@ export default function Page() {
                 setSelectedEquipment(item);
                 setIsEquipmentModalOpen(true);
               }}
+              onDelete={handleDeleteEquipment}
+              onReturn={handleReturnEquipment}
             />
           </div>
         </section>
@@ -1262,6 +1294,15 @@ export default function Page() {
         isOpen={isEquipmentModalOpen}
         onClose={() => {
           setIsEquipmentModalOpen(false);
+          setSelectedEquipment(null);
+        }}
+        onSuccess={fetchEquipment}
+        equipment={selectedEquipment}
+      />
+      <EquipmentReturnModal
+        isOpen={isEquipmentReturnModalOpen}
+        onClose={() => {
+          setIsEquipmentReturnModalOpen(false);
           setSelectedEquipment(null);
         }}
         onSuccess={fetchEquipment}

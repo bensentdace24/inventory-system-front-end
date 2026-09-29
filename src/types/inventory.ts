@@ -46,6 +46,18 @@ export interface InventoryItemFormData {
   status_remarks: string;
 }
 
+export interface EquipmentReturn {
+  id: number;
+  equipment_id: number;
+  previous_custodian_id: number | null;
+  returned_to: string;
+  return_date: string;
+  condition: string;
+  reason: string | null;
+  remarks: string | null;
+  previous_custodian?: Custodian | null;
+}
+
 export interface Equipment {
   id: number;
   asset_number: string;
@@ -66,8 +78,9 @@ export interface Equipment {
   } | null;
 
   custodian?: Custodian | null;
-}
 
+  returns?: EquipmentReturn[];
+}
 export interface EquipmentFormData {
   asset_number: string;
   serial_number: string;

@@ -6,12 +6,16 @@ interface EquipmentTableProps {
   equipment: Equipment[];
   loading: boolean;
   onEdit: (item: Equipment) => void;
+  onDelete: (item: Equipment) => void;
+  onReturn: (item: Equipment) => void;
 }
 
 export default function EquipmentTable({
   equipment,
   loading,
   onEdit,
+  onDelete,
+  onReturn,
 }: EquipmentTableProps) {
   if (loading) {
     return (
@@ -32,7 +36,7 @@ export default function EquipmentTable({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1250px] text-left">
+        <table className="w-full min-w-[1350px] text-left">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-sm font-semibold text-gray-700">
@@ -73,6 +77,10 @@ export default function EquipmentTable({
 
               <th className="px-4 py-3 text-sm font-semibold text-gray-700">
                 Status
+              </th>
+
+              <th className="px-4 py-3 text-sm font-semibold text-gray-700">
+                Return Date
               </th>
 
               <th className="px-4 py-3 text-sm font-semibold text-gray-700">
@@ -130,14 +138,38 @@ export default function EquipmentTable({
                   </span>
                 </td>
 
+                <td className="px-4 py-4 text-sm text-gray-600">
+                  {item.returns && item.returns.length > 0
+                    ? item.returns[0].return_date
+                    : "—"}
+                </td>
+
                 <td className="px-4 py-4 text-sm">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(item)}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(item)}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onReturn(item)}
+                      className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50"
+                    >
+                      Return to GSO
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onDelete(item)}
+                      className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
