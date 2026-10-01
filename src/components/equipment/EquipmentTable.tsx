@@ -8,6 +8,7 @@ interface EquipmentTableProps {
   onEdit: (item: Equipment) => void;
   onDelete: (item: Equipment) => void;
   onReturn: (item: Equipment) => void;
+  onHistory: (item: Equipment) => void;
 }
 
 export default function EquipmentTable({
@@ -16,6 +17,7 @@ export default function EquipmentTable({
   onEdit,
   onDelete,
   onReturn,
+  onHistory,
 }: EquipmentTableProps) {
   if (loading) {
     return (
@@ -160,6 +162,13 @@ export default function EquipmentTable({
                       className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50"
                     >
                       Return to GSO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onHistory(item)}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
+                    >
+                      View History
                     </button>
 
                     <button

@@ -16,6 +16,7 @@ import EquipmentReturnModal from "../components/equipment/EquipmentReturnModal";
 import { WithdrawalModal } from "../components/inventory/WithdrawalModal";
 import { StockInModal } from "../components/inventory/StockInModal";
 import { ReturnModal } from "../components/inventory/ReturnModal";
+import EquipmentReturnHistoryModal from "../components/equipment/EquipmentReturnHistoryModal";
 
 // --- Form Initial State & Options ---
 
@@ -159,6 +160,8 @@ export default function Page() {
   const [equipmentLoading, setEquipmentLoading] = useState(true);
   const [isEquipmentReturnModalOpen, setIsEquipmentReturnModalOpen] =
     useState(false);
+  const [isEquipmentHistoryModalOpen, setIsEquipmentHistoryModalOpen] =
+    useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<InventoryItemFormData>(EMPTY_FORM);
@@ -228,6 +231,10 @@ export default function Page() {
   const handleReturnEquipment = (item: Equipment) => {
     setSelectedEquipment(item);
     setIsEquipmentReturnModalOpen(true);
+  };
+  const handleViewEquipmentHistory = (item: Equipment) => {
+    setSelectedEquipment(item);
+    setIsEquipmentHistoryModalOpen(true);
   };
 
   const updateField = <K extends keyof InventoryItemFormData>(
@@ -1266,6 +1273,7 @@ export default function Page() {
               }}
               onDelete={handleDeleteEquipment}
               onReturn={handleReturnEquipment}
+              onHistory={handleViewEquipmentHistory}
             />
           </div>
         </section>
@@ -1306,6 +1314,14 @@ export default function Page() {
           setSelectedEquipment(null);
         }}
         onSuccess={fetchEquipment}
+        equipment={selectedEquipment}
+      />
+      <EquipmentReturnHistoryModal
+        isOpen={isEquipmentHistoryModalOpen}
+        onClose={() => {
+          setIsEquipmentHistoryModalOpen(false);
+          setSelectedEquipment(null);
+        }}
         equipment={selectedEquipment}
       />
     </div>
